@@ -1,0 +1,46 @@
+---
+- name: Configurar servidores web Apache
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Instalar Apache
+      apt:
+        name: apache2
+        state: present
+    - name: Iniciar y habilitar Apache
+      service:
+        name: apache2
+        state: started
+        enabled: true
+    - name: Crear página de bienvenida personalizada
+      copy:
+        dest: /var/www/html/index.html
+        content: "{{ inventory_hostname }} - Servidor Apache en funcionamiento"
+
+- name: Configurar balanceador de carga NGINX
+  hosts: loadbalancer
+  become: yes
+  tasks:
+    - name: Instalar NGINX
+      apt:
+        name: nginx
+        state: present
+    - name: Configurar NGINX para balanceo de carga
+      blockinfile:
+        path: /etc/nginx/sites-available/default
+        create: yes
+        block: |
+          upstream backend {
+              server 192.168.56.101;
+              server 192.168.56.102;
+          }
+          server {
+              listen 80;
+              location / {
+                  proxy_pass http://backend;
+              }
+          }
+    - name: Reiniciar NGINX
+      service:
+        name: nginx
+        state: restarted
